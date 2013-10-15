@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<script src="jquery-1.8.0.min.js"></script>
+	<style>
+		body{
+			margin: 0px;
+			padding: 0px;
+		}
+		#gameArea{
+			position: ;
+		}
+	</style>
+	<script>
+
+		// event listener
+		$( document ).keydown( function( event ){
+			GameEngine.statusOfPossibleCommands[ event.keyCode ] = true;
+			GameEngine.timeOfPossibleCommands[ event.keyCode ] = GameEngine.dateObject.getTime();
+			GameEngine.currentCommand = event.keyCode;
+		});
+		$( document ).keyup( function( event ){
+			GameEngine.statusOfPossibleCommands[ event.keyCode ] = false;
+
+			// if the key that is up is the current
+			if( event.keyCode == GameEngine.currentCommand ){
+				GameEngine.currentCommand = false;
+
+				// selection of next if there is a next
+				if( GameEngine.statusOfPossibleCommands.indexOf( true ) != -1 ){
+					var selected = GameEngine.timeOfPossibleCommands[87]; // first
+					var key = GameEngine.statusOfPossibleCommands.indexOf( true );
+
+					// search for the greater date
+					$.each(GameEngine.timeOfPossibleCommands, function(index, value){
+						if( selected < value ){
+							selected = value;
+							key = index;
+						}
+					});
+
+					GameEngine.currentCommand = key;
+				}
+			}
+		});
+
+		var GameEngine = {
+
+			creaturesRegistry: [],
+			backgroundRegistry: [],
+			buildingsRegistry: [],
+			earthRegistry: [],
+			map: '',
+			loop: '',
+			statusOfPossibleCommands: [], // keydown
+			timeOfPossibleCommands: [],
+			currentCommand: false,
+			commandBusy: false,
+			loopInterval: 10,
+			dateObject: new Date(),
+
+
+			// type of element that actos can't pass throught
+			begin: function( mapTagId ){
+
+				// map tag
+				this.map = mapTagId;
+
+				// possible commands
+				this.statusOfPossibleCommands[87] = false;
+				this.statusOfPossibleCommands[68] = false;
+				this.statusOfPossibleCommands[83] = false;
+				this.statusOfPossibleCommands[65] = false; // keydown
+				this.timeOfPossibleCommands[87] = this.dateObject.getTime();
+				this.timeOfPossibleCommands[68] = this.dateObject.getTime();
+				this.timeOfPossibleCommands[83] = this.dateObject.getTime();
+				this.timeOfPossibleCommands[65] = this.dateObject.getTime();
+
+				// FOR TEST ----------------------------------------------
+					// backgrounds registration
+					var newBackBackground = $.extend(true, {name:'clouds', tag:'#clouds'}, this.background);
+						newBackBackground.layer = $.extend(true, {zIndex:1,status:1}, this.layer);
+						newBackBackground.image = $.extend(true, {src: 'img/fundo1-500.jpg', repeat:'repeat-x', position: 'normal'}, this.image);
+						newBackBackground.movement = $.extend(true, {}, this.movements);
+							newBackBackground.movement.formula = {a:0,b:0,degree:'first',speed:1};
+					this.backgroundRegistry.push( newBackBackground );
+
+					var newFrontBackground = $.extend(true, {name:'mountains', tag:'#mountains'}, this.background);
+						newFrontBackground.layer = $.extend(true, {zIndex:1,status:1}, this.layer);
+						newFrontBackground.image = $.extend(true, {src: 'img/morro.png', repeat:'no-repeat', position: 'bottom left'}, this.image);
+						newFrontBackground.movement = $.extend(true, {}, this.movements);
+							newFrontBackground.movement.formula = {a:0,b:0,degree:'',speed:0};
+					this.backgroundRegistry.push( newFrontBackground );
+
+					// creature registration
+					var newCreature = $.extend(true, {name:'heroi', tag:'#heroi', protagonist: true, order:[], control:[]}, this.creatures);
+						newCreature.positioning = $.extend(true, {xCoordinate:10,yCoordinate:10}, this.positioning);
+						newCreature.image = $.extend(true, {src: 'img/mario-100.jpg'}, this.image);
+							newCreature.image.frame = $.extend(true, {width:100,height:100,number:1}, this.frame);
+							newCreature.image.animations = $.extend(true, {right:1}, this.animations);
+						newCreature.corners = [
+							[newCreature.positioning.xCoordinate, newCreature.positioning.yCoordinate], // top-left
+							[newCreature.positioning.xCoordinate+newCreature.image.frame.width, newCreature.positioning.yCoordinate], // top-right
+							[newCreature.positioning.xCoordinate+newCreature.image.frame.width, newCreature.positioning.yCoordinate+newCreature.image.frame.height], // bottom-right
+							[newCreature.positioning.xCoordinate, newCreature.positioning.yCoordinate+newCreature.image.frame.height] ]; // bottom-left
+						newCreature.movement = $.extend(true, {speed:10}, this.movements);
+							// newCreature.control = [119,100,115,97]; // keypress
+							newCreature.control = [87,68,83,65]; // keydown
+					this.creaturesRegistry.push( newCreature );
+				// -------------------------------------------------------
+
+				// get elements measures and register them as screen wall
+				$(this.map).data('topLimit', $( this.map ).css( 'top' ) );
+				$(this.map).data( 'leftLimit', $( this.map ).css( 'left' ) );
+				$(this.map).data( 'rightLimit', $( this.map ).css( 'width' ) );
+				$(this.map).data( 'bottomLimit', $( this.map ).css( 'height' ) );
+
+				// verify registration
+				this.elementsRegister.verifyRegistration();
+
+				// frames control
+				this.loop = setInterval(function(){
+					var retorno = GameEngine.framesControl.loop();
+				},this.loopInterval);
+			},
+
+			// essential elements ########################################################
+			framesControl: {
+				build: function(){
+					
+				},
+				loop: function(){
+					GameEngine.elementsRegister.searchMovementAtRegistredElements();
+				}
+			},
+
+			elementsRegister: {
+				verifyRegistration: function(){
+
+					// verify backgrounds
+					for( background in GameEngine.backgroundRegistry ){
+						var game = $( GameEngine.map );
+						var backgroundObj = GameEngine.backgroundRegistry[background];
+						
+						// verify registry existence
+						var backgroundTag = $( backgroundObj.tag );
+						var existence = game.find( creatureTag );
+
+						// create with registered configurations
+						if( existence.length == 0 ){
+							var position;
+
+							if( backgroundObj.image.position == 'normal' ){
+								position = "0px 0px";
+							}else{
+								position = backgroundObj.image.position;
+							}
+
+
+							var tag = $("<div></div>");
+							tag.attr({
+								id: backgroundObj.name
+							});
+							tag.css({
+								position: 'absolute',
+								width: $(GameEngine.map).data('rightLimit'),
+								height: $(GameEngine.map).data('bottomLimit'),
+								top: $(GameEngine.map).data('topLimit'),
+								left: $(GameEngine.map).data('leftLimit'),
+								border: '1px solid #000',
+								backgroundImage: "url("+backgroundObj.image.src+")",
+								backgroundPosition: position,
+								backgroundRepeat: backgroundObj.image.repeat
+							});
+							game
+								.append( tag[0] );
+						}
+					}
+
+					// verify creatures
+					for( creature in GameEngine.creaturesRegistry ){
+						var game = $( GameEngine.map );
+						var creatureObj = GameEngine.creaturesRegistry[creature];
+						
+						// verify registry existence
+						var creatureTag = $( creatureObj.tag );
+						var existence = game.find( creatureTag );
+
+						// create with registered configurations
+						if( existence.length == 0 ){
+							var tag = $("<img/>");
+							tag.attr({
+								id: creatureObj.name,
+								src: creatureObj.image.src
+							});
+							tag.css({
+								position: 'relative',
+								width: creatureObj.image.frame.width + 'px',
+								height: creatureObj.image.frame.height + 'px',
+								top: creatureObj.positioning.yCoordinate,
+								left: creatureObj.positioning.xCoordinate,
+								border: '1px solid #000'
+							});
+							game
+								.append("<div style='position:absolute;top:" + $(GameEngine.map).data('topLimit') + ";left:" + $(GameEngine.map).data('leftLimit') + ";width:" + $(GameEngine.map).data('rightLimit') + ";height:" + $(GameEngine.map).data('bottomLimit') + ";'></div>")
+								.find('div:last')
+									.append( tag[0] );
+
+						}
+					}
+
+					// verify buildings
+
+					// verify earth
+				},
+
+				searchMovementAtRegistredElements: function(){
+
+					// verify backgrounds
+					for( background in GameEngine.backgroundRegistry ){
+						var game = $( GameEngine.map ),
+							backgroundObj = GameEngine.backgroundRegistry[background],
+							a = backgroundObj.movement.formula.a,
+							b = backgroundObj.movement.formula.b;
+
+						var y = $(backgroundObj.tag).css('background-position').split(' ')[1];
+						y = parseInt(y.substring(0,y.length-2));
+						var x = $(backgroundObj.tag).css('background-position').split(' ')[0];
+						x = parseInt(x.substring(0,x.length-2));
+						
+						if( backgroundObj.movement.formula.degree == 'first' ){
+							x = x + backgroundObj.movement.formula.speed;
+							y = a*x+b;
+
+							$(backgroundObj.tag).css('background-position', x+'px '+y+'px');
+						}
+
+						if( backgroundObj.movement.formula.degree == 'second' ){
+							var c = backgroundObj.movement.formula.c;
+							// TODO
+						}
+					}
+
+					// verify creatures
+					for( creature in GameEngine.creaturesRegistry ){
+						
+						var game = $( GameEngine.map ),
+							creatureObj = GameEngine.creaturesRegistry[creature];
+
+						// commands - verify which command is been given
+						if( creatureObj.control.indexOf( GameEngine.currentCommand ) != -1 ){
+							creatureObj.order[0] = creatureObj.control.indexOf( GameEngine.currentCommand );
+						}else{
+							creatureObj.order[0] = '';
+							if( GameEngine.currentCommand == '' ){ break; }
+						}
+
+						// changing position and corners
+						if( creatureObj.order[0] == 0 ){ // TOP
+							// position
+							creatureObj.positioning.yCoordinate -= creatureObj.movement.speed;
+							$(creatureObj.tag).css('top', creatureObj.positioning.yCoordinate+'px' );
+							// corners
+							creatureObj.corners = [
+								[creatureObj.positioning.xCoordinate, creatureObj.positioning.yCoordinate], // top-left
+								[creatureObj.positioning.xCoordinate+creatureObj.image.frame.width, creatureObj.positioning.yCoordinate], // top-right
+								[creatureObj.positioning.xCoordinate+creatureObj.image.frame.width, creatureObj.positioning.yCoordinate+creatureObj.image.frame.height], // bottom-right
+								[creatureObj.positioning.xCoordinate, creatureObj.positioning.yCoordinate+creatureObj.image.frame.height] ]; // bottom-left
+						}
+						if( creatureObj.order[0] == 1 ){ // RIGHT
+							// position
+							creatureObj.positioning.xCoordinate += creatureObj.movement.speed;
+							$(creatureObj.tag).css('left', creatureObj.positioning.xCoordinate+'px' );
+							// corners
+							creatureObj.corners = [
+								[creatureObj.positioning.xCoordinate, creatureObj.positioning.yCoordinate], // top-left
+								[creatureObj.positioning.xCoordinate+creatureObj.image.frame.width, creatureObj.positioning.yCoordinate], // top-right
+								[creatureObj.positioning.xCoordinate+creatureObj.image.frame.width, creatureObj.positioning.yCoordinate+creatureObj.image.frame.height], // bottom-right
+								[creatureObj.positioning.xCoordinate, creatureObj.positioning.yCoordinate+creatureObj.image.frame.height] ]; // bottom-left
+						}
+						if( creatureObj.order[0] == 2 ){ // BOTTOM
+							// position
+							creatureObj.positioning.yCoordinate += creatureObj.movement.speed;
+							$(creatureObj.tag).css('top', creatureObj.positioning.yCoordinate+'px' );
+							// corners
+							creatureObj.corners = [
+								[creatureObj.positioning.xCoordinate, creatureObj.positioning.yCoordinate], // top-left
+								[creatureObj.positioning.xCoordinate+creatureObj.image.frame.width, creatureObj.positioning.yCoordinate], // top-right
+								[creatureObj.positioning.xCoordinate+creatureObj.image.frame.width, creatureObj.positioning.yCoordinate+creatureObj.image.frame.height], // bottom-right
+								[creatureObj.positioning.xCoordinate, creatureObj.positioning.yCoordinate+creatureObj.image.frame.height] ]; // bottom-left
+						}
+						if( creatureObj.order[0] == 3 ){ // LEFT
+							// position
+							creatureObj.positioning.xCoordinate -= creatureObj.movement.speed;
+							$(creatureObj.tag).css('left', creatureObj.positioning.xCoordinate+'px' );
+							// corners
+							creatureObj.corners = [
+								[creatureObj.positioning.xCoordinate, creatureObj.positioning.yCoordinate], // top-left
+								[creatureObj.positioning.xCoordinate+creatureObj.image.frame.width, creatureObj.positioning.yCoordinate], // top-right
+								[creatureObj.positioning.xCoordinate+creatureObj.image.frame.width, creatureObj.positioning.yCoordinate+creatureObj.image.frame.height], // bottom-right
+								[creatureObj.positioning.xCoordinate, creatureObj.positioning.yCoordinate+creatureObj.image.frame.height] ]; // bottom-left
+						}
+						
+					}
+
+				}
+			},
+
+			// important elements ########################################################
+			background: {
+				build: function(){
+
+				}
+				// name: '',
+				// tag: '',
+				// layer: {},
+				// image: {},
+				// movement: {}
+			},
+
+			creatures: {
+				build: function(){
+
+				},
+				// name: '',
+				// tag: '',
+				// image: {},
+				// format: {},
+				// movement: {},
+				// control: [],
+				// positioning: {},
+				// protagonist: false,
+				// order: [2],
+				// corners: [],
+			},
+
+			buildings: {
+
+			},
+
+			earth: {
+
+			},
+
+			// secundary elements ########################################################
+			format: {
+				// formula: '',
+				// borderType: {}
+			},
+
+			movements: {
+				// formula: {},
+				// speed: '',
+				// acceleration: '',
+				// status: ''
+			},
+
+			formula: {
+				// x: 0,
+				// y: 0,
+				// a: 0,
+				// b: 0,
+				// c: 0,
+				// degree
+			},
+
+			controls: [
+				// top
+				// right
+				// bottom
+				// left
+			],
+
+			positioning: {
+				// xCoordinate: '',
+				// yCoordinate: ''
+			},
+
+			layer: {
+				// zIndex: 1,
+				// status: 1
+			},
+
+			image: {
+				// src: '',
+				// frame: {},
+				// animations: {},
+				// repeat
+			},
+
+			animations: {
+				// top: [0],
+				// bottom: [0],
+				// left: [0],
+				// right: [0]
+			},
+
+			borderType: [
+				'float',
+				'wrinkly',
+				'pointed'
+			],
+
+			order: {
+
+			},
+
+			// polymorphism, animation, image
+			frame: {
+				// width: 0,
+				// height: 0,
+				// number: 1
+			},
+
+			corners: [
+				// left-top
+				// right-top
+				// right-bottom
+				// left-bottom
+			],
+
+		}
+
+	</script>
+</head>
+<body>
+
+	<div id="gameArea" style="top:0px;left:0px;width:700px;height:500px;">
+		
+	</div>
+
+	<script>
+		$( document ).ready(function(){
+
+			GameEngine.begin( '#gameArea' );
+
+		});
+	</script>
+
+</body>
+</html>
